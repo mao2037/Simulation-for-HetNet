@@ -1,6 +1,6 @@
 # Bus Network Discretization and Passenger Simulation
 
-[▶ View the interactive simulation](https://mao2037.github.io/Simulation-for-HetNet/Visualization/)
+[![Bus simulation preview](Visualization/toy-network-preview.gif)](https://mao2037.github.io/Simulation-for-HetNet/Visualization/)
 
 The pipeline has four stages: network discretization, observation-period origin–destination (OD) sampling, vehicle scheduling, and discrete-event passenger simulation. The `earliest` strategy boards the first eligible vehicle, while `shortest` selects services based on the shortest travel distance. Both strategies use the same OD sample, warm-up demand, and bus schedules.
 
