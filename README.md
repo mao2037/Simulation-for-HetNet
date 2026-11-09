@@ -1,20 +1,20 @@
-# 公交网络离散化与乘客仿真
+# Bus Network Discretization and Passenger Simulation
 
-项目沿用网络离散化、正式 OD 抽样、车辆排班和乘客离散事件仿真四个阶段。两种策略 `earliest` 和 `shortest` 使用同一份 OD、预热需求和公交班次，分别计算最先可乘车辆和最短里程策略。
+The pipeline has four stages: network discretization, observation-period origin–destination (OD) sampling, vehicle scheduling, and discrete-event passenger simulation. The `earliest` strategy boards the first eligible vehicle, while `shortest` selects services based on the shortest travel distance. Both strategies use the same OD sample, warm-up demand, and bus schedules.
 
-## 运行环境
+## Requirements
 
-使用 Python 3.9 或以上版本。在项目目录安装依赖。
+Use Python 3.9 or later. Install the dependencies from the project directory.
 
 ```sh
 python -m pip install -r requirements.txt
 ```
 
-重新导出网络时需要将 MATLAB 加入 `PATH`。其余阶段由 Python 执行。
+Add MATLAB to `PATH` to export the network. Python runs the remaining stages.
 
-## 运行方式
+## Running the pipeline
 
-`run_pipeline.py` 默认依次生成排班和执行乘客仿真，处理六个内置场景，每个场景重复 10 次，最多使用 2 个工作进程。默认场景均为一小时 100,000 人、`mu=25`、`alpha=0.5`、城市边长 10 公里。首次运行时，可以先生成网络和 OD，再使用默认阶段。程序在控制台显示实验总数，以及每个启动任务的序号、场景和重复号。
+By default, `run_pipeline.py` builds vehicle schedules and runs the passenger simulation for six built-in scenarios, with 10 replications per scenario and up to two worker processes. Each default scenario uses 100,000 passengers per hour, `mu=25`, `alpha=0.5`, and a city side length of 10 km. On the first run, generate the network and OD workbooks before running the default stages. The console displays the total number of runs and reports the run number, scenario, and replication number as each run starts.
 
 ```sh
 python run_pipeline.py --stages network,od
@@ -23,32 +23,36 @@ python run_pipeline.py --mode single --city Monocentric --rep 1 --stages network
 python run_pipeline.py --mode single --city Monocentric --rep 1 --stages simulation
 ```
 
-`--mode single` 选择单个场景，可通过 `--city`、`--demand`、`--mu`、`--alpha` 和 `--citysize` 指定五参数。`--mode selected` 运行脚本顶部 `SELECTED_SCENARIOS` 中的批量场景。`--rep N` 只处理第 N 次重复，`--replications N` 处理第 1 至 N 次。`--stages` 接受逗号分隔的阶段名，按 `network`、`od`、`scene`、`simulation` 的顺序执行所选阶段。
+Use `--mode single` to run one scenario. Set its parameters with `--city`, `--demand`, `--mu`, `--alpha`, and `--citysize`. Use `--mode selected` to run the scenarios listed in `SELECTED_SCENARIOS` at the top of the script. `--rep N` runs only replication N, while `--replications N` runs replications 1 through N. `--stages` accepts a comma-separated list and executes the selected stages in the order `network`, `od`, `scene`, `simulation`.
 
-发布版固定采用 `cell_conservative`。正式和预热 OD 均按原网格节点联合概率选取起终点单元，再按四维插值密度在单元内连续抽样。乘客行为沿用曼哈顿步行、最近站对不可达修复、一次换乘约束，以及各候选站首辆合规末程车的终点到达时间比较。线路按原始车头时距严格小于 120 分钟筛选，删除线路的频率按方向回分给保留线路。单车容量为 100,000 人。数值参数可在 `simulation_common/core.py` 的 `SimulationConfig` 中修改。更换需求 MAT 后需重新生成 `od`。更换种子后需重新生成 `od` 和 `scene`。
+The pipeline uses the `cell_conservative` sampling method. For both observation-period and warm-up demand, it selects origin and destination cells using the joint probabilities at the original grid nodes, then samples continuous coordinates within those cells using the four-dimensional interpolated density.
 
-## 输入与输出
+The simulation uses Manhattan walking distances and allows at most one transfer. If the closest boarding and alighting stops cannot be connected within that limit, it searches for a reachable stop pair. To select a transfer stop, it compares the predicted arrival time at the destination stop using the first eligible connecting vehicle at each candidate stop.
 
-`inputs/` 随项目提供 Monocentric、Commuter、checkerboard1、checkerboard2、checkerboard3 和 checkerboard4 的输入。四个棋盘场景沿用改名前的 OD 与排班随机流。
+The pipeline retains routes whose original headways are strictly below 120 minutes. It redistributes the frequencies of removed routes among the retained routes in the same direction. Vehicle capacity is set to 100,000 passengers. Numerical parameters can be changed in `SimulationConfig` in `simulation_common/core.py`. Regenerate `od` after changing the demand MAT file. Regenerate both `od` and `scene` after changing the random seed.
 
-| 目录 | 文件 |
+## Inputs and outputs
+
+The `inputs/` directory contains data for Monocentric, Commuter, checkerboard1, checkerboard2, checkerboard3, and checkerboard4. The four checkerboard scenarios retain the OD and scheduling random streams associated with their original names.
+
+| Directory | Contents |
 | --- | --- |
-| `inputs/model/` | 含 `delta_EW`、`delta_NS`、`h_E`、`h_W`、`h_N`、`h_S` 的连续模型解 |
-| `inputs/demand/<city>/` | 含 `lambda_OD` 和 `D` 的需求 MAT，供正式及预热 OD 抽样 |
+| `inputs/model/` | Continuum model solutions containing `delta_EW`, `delta_NS`, `h_E`, `h_W`, `h_N`, and `h_S` |
+| `inputs/demand/<city>/` | Demand MAT files containing `lambda_OD` and `D` for observation-period and warm-up OD sampling |
 
-所有数据路径均相对于项目目录。`scene` 从 `outputs/` 读取对应场景的 `network`。`simulation` 从 `outputs/` 读取该场景的 `network`，以及对应重复号的 `od` 和 `scene`。前置文件缺失时，程序报出缺失路径并提示需要补跑的阶段。
+All data paths are relative to the project directory. The `scene` stage reads the scenario's `network` workbook from `outputs/`. The `simulation` stage reads that `network` workbook and the `od` and `scene` workbooks for the corresponding replication. If a required workbook is missing, the pipeline reports its path and the stage needed to generate it.
 
-增加场景时，将匹配的模型和需求 MAT 放入对应 `inputs/` 目录，并运行所需阶段。模型文件使用 `<city>_demand_<demand>_mu_<mu>_alpha_<alpha>_citysize_<citysize>.mat`。四个内置棋盘场景的需求文件使用 `<city>_lambda_<demand>_citysize_<citysize>.mat`，其余场景使用 `lambda_<demand>_citysize_<citysize>.mat`。
+To add a scenario, place the matching model and demand MAT files in the corresponding `inputs/` directories and run the required stages. Model files use the name `<city>_demand_<demand>_mu_<mu>_alpha_<alpha>_citysize_<citysize>.mat`. Demand files for the four built-in checkerboard scenarios use `<city>_lambda_<demand>_citysize_<citysize>.mat`. All other demand files use `lambda_<demand>_citysize_<citysize>.mat`.
 
-| 输出目录 | 工作簿内容 |
+| Output directory | Workbook contents |
 | --- | --- |
-| `outputs/network/` | 离散线路、几何线段、站点及其关联 |
-| `outputs/od/` | 正式需求时段每位乘客的出发时刻和起终点坐标，工作簿直接保存在该目录 |
-| `outputs/scene/` | 运营线路、排班和逐站到发时刻，工作簿直接保存在该目录 |
-| `outputs/model_metrics/` | 逐次结果和场景均值工作簿，每策略一行 |
+| `outputs/network/` | Discretized routes, geometric segments, stops, and their relationships |
+| `outputs/od/` | Departure times and origin and destination coordinates for each passenger in the observation period |
+| `outputs/scene/` | Operating routes, vehicle schedules, and arrival and departure times at each stop |
+| `outputs/model_metrics/` | Per-replication results and scenario means, with one row per strategy |
 
-`metrics` 工作表仅含策略标识和六项目标函数分项。`N_k`、`N_h` 是运营里程与运营时间成本，按时间价值折算为每位正式需求乘客的等价分钟。`T_a`、`T_w`、`T_t`、`T_r` 分别为加权步行、普通候车、换乘衔接和车内时间，按正式需求人数归一。没有完成者时四项乘客时间留空。
+The `metrics` worksheet contains the strategy identifier and six objective function components. `N_k` and `N_h` are vehicle distance and operating time costs, converted using the value of time to equivalent minutes per passenger in the observation period. `T_a`, `T_w`, `T_t`, and `T_r` are weighted walking time, ordinary waiting time, transfer connection time, and in-vehicle time, respectively, normalized by the number of passengers in the observation period. The four passenger time components are blank if no passenger completes a trip.
 
-每个场景在本次选中的重复全部成功后，自动写出 `model_metrics_summary_<场景键>_cell_conservative_reps_<次数>.xlsx`。默认汇总 10 次。每个分项在同一策略内取各次结果的算术平均值。某分项在任一次重复中为空时，其均值留空。单独运行一个 `--rep` 时只写逐次指标。
+After all selected replications for a scenario succeed, the pipeline automatically writes `model_metrics_summary_<scenario_key>_cell_conservative_reps_<count>.xlsx`. The default summary covers 10 replications. For each strategy, it reports the arithmetic mean of each component across replications. If a component is blank in any replication, its mean is blank. Running a single replication with `--rep` writes only its per-replication workbook.
 
-逐次指标文件名含 `cell_conservative`。再次执行同一场景及重复号时会替换相应工作簿。已有 `network` 和 `scene` 时，切换到这一版后可用 `--stages od,simulation` 生成新口径的 OD 和指标。
+Per-replication metric filenames include `cell_conservative`. Rerunning the same scenario and replication replaces the corresponding workbook. When compatible `network` and `scene` workbooks already exist, use `--stages od,simulation` to generate OD samples and metrics with this sampling method.
