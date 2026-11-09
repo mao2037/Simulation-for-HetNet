@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="An individual-agent replay of one hour on the Chessboard0 toy transit network.">
+  <title>Toy Network · Transit Simulation</title>
+  <link rel="stylesheet" href="style.css">
+  <script defer src="replay-data.js"></script>
+  <script defer src="replay.js"></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="masthead">
+      <span class="study"><span class="study-mark" aria-hidden="true">✳</span> Heterogeneous transit networks</span>
+      <span class="edition">CHESSBOARD0 / Δ 0.5 KM</span>
+    </header>
+
+    <div class="intro">
+      <div>
+        <p class="eyebrow">DISCRETE-EVENT SIMULATION</p>
+        <h1>Toy Network</h1>
+        <p class="subtitle">One hour of bus service and individual passenger journeys.</p>
+      </div>
+      <div class="scenario" aria-label="Scenario parameters">
+        <span id="city-size">2 × 2 km</span>
+        <span id="scenario-demand">250 passengers / h</span>
+      </div>
+    </div>
+
+    <div class="layout">
+      <section class="panel map-panel" aria-labelledby="map-heading">
+        <div class="panel-header">
+          <h2 id="map-heading">Network replay</h2>
+          <span class="loop-badge"><span aria-hidden="true">↻</span> 60-MINUTE LOOP</span>
+        </div>
+        <canvas id="map" role="img" aria-label="Animated map of bus and passenger movement across the toy transit network">
+          This replay requires a browser with Canvas support.
+        </canvas>
+        <div class="player" aria-label="Replay controls">
+          <button id="play" class="primary" type="button" aria-label="Pause replay" title="Pause replay">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path id="play-icon" d="M8 5h3v14H8zm5 0h3v14h-3z"/></svg>
+          </button>
+          <button id="restart" class="restart" type="button" aria-label="Restart from minute zero" title="Restart from minute zero">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11a8 8 0 1 1 2 6.3M4 5v6h6"/></svg>
+          </button>
+          <div class="seek">
+            <div class="time"><output id="clock" for="seek">00:00</output><span>60:00</span></div>
+            <input id="seek" type="range" min="0" max="3600" value="0" step="any" aria-label="Simulation time">
+          </div>
+          <label class="speed">
+            <span>Speed</span>
+            <select id="speed" aria-label="Playback speed">
+              <option value="30">30×</option>
+              <option value="60" selected>60×</option>
+              <option value="120">120×</option>
+              <option value="240">240×</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <aside class="sidebar" aria-label="Replay statistics and legend">
+        <section class="panel sidebar-panel" aria-labelledby="counts-heading">
+          <h2 id="counts-heading">At a glance</h2>
+          <dl class="counters">
+            <div><dt>Buses in view</dt><dd id="buses">—</dd></div>
+            <div><dt>Passengers in view</dt><dd id="passengers">—</dd></div>
+            <div><dt>Trips started</dt><dd id="started">—</dd></div>
+            <div><dt>Trips completed</dt><dd id="completed">—</dd></div>
+          </dl>
+          <p class="hint">Trip totals count passengers who depart during this hour.</p>
+        </section>
+
+        <section class="panel sidebar-panel" aria-labelledby="legend-heading">
+          <h2 id="legend-heading">Map key</h2>
+          <ul class="legend">
+            <li><span class="symbol ew" aria-hidden="true"></span> East–west corridors</li>
+            <li><span class="symbol ns" aria-hidden="true"></span> North–south corridors</li>
+            <li><span class="symbol station" aria-hidden="true"></span> Station</li>
+            <li><span class="symbol bus" aria-hidden="true"></span> Bus</li>
+            <li><span class="symbol rider" aria-hidden="true"></span> Walking or riding passenger</li>
+            <li><span class="symbol waiting" aria-hidden="true"></span> Waiting or transferring passenger</li>
+          </ul>
+        </section>
+
+        <section class="window-note" aria-labelledby="window-heading">
+          <h2 id="window-heading">Replay window</h2>
+          <p>Minute zero starts after a two-hour warm-up. Vehicles and passengers already in the network carry over into the replay.</p>
+        </section>
+      </aside>
+    </div>
+
+    <footer class="footer">
+      <span>TOY NETWORK STUDY</span>
+      <span id="network-detail">18 stations · 37 operating routes · Replication 01</span>
+    </footer>
+    <noscript><p>Enable JavaScript to play the simulation.</p></noscript>
+  </main>
+</body>
+</html>
