@@ -17,11 +17,29 @@ STAGE_ORDER = ("network", "od", "scene", "simulation")
 SINGLE_SCENARIO = dict(city="Monocentric", demand=100000, mu=25, alpha=0.5, citysize=10)
 SELECTED_SCENARIOS = [
     dict(SINGLE_SCENARIO, city=city)
-    for city in ("Monocentric", "Commuter", "checkerboard1", "checkerboard2", "checkerboard3", "checkerboard4")
+    for city in (
+        "Monocentric",
+        "Commuter",
+        "checkerboard1",
+        "checkerboard2",
+        "checkerboard3",
+        "checkerboard4",
+    )
 ]
 REPLICATIONS = 10
 MAX_WORKERS = 2
-SIMULATION = SimulationConfig()
+SIMULATION = SimulationConfig(
+    bus_speed_kmh=25.0,
+    walk_speed_kmh=2.0,
+    dwell_s=30.0,
+    transfer_s=60.0,
+    capacity=100000,
+    warmup_s=7200.0,
+    base_seed=42,
+    sheet_rows=500000,
+    routing_cache_destinations=16,
+    route_max_headway_min=120.0,
+)
 
 
 def positive_int(value: str) -> int:
@@ -34,7 +52,9 @@ def positive_int(value: str) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the bus network and passenger simulation pipeline.")
     parser.add_argument("--mode", choices=("single", "selected"), default=RUN_MODE)
-    parser.add_argument("--stages", default=STAGES, help="Comma-separated stages: network,od,scene,simulation")
+    parser.add_argument(
+        "--stages", default=STAGES, help="Comma-separated stages: network,od,scene,simulation"
+    )
     parser.add_argument("--city")
     parser.add_argument("--demand", type=positive_int)
     parser.add_argument("--mu", type=float)
@@ -44,6 +64,7 @@ def main() -> None:
     repetitions.add_argument("--replications", type=positive_int, default=REPLICATIONS)
     repetitions.add_argument("--rep", type=positive_int)
     args = parser.parse_args()
+    config = SIMULATION
 
     stages = frozenset(stage.strip() for stage in args.stages.split(","))
     if not stages.issubset(STAGE_ORDER):
@@ -73,13 +94,15 @@ def main() -> None:
     if not repetition_stages:
         print(f"实验总数 {len(scenarios)}", flush=True)
     for number, scenario in enumerate(scenarios, 1):
-        missing = missing_prerequisites(scenario, reps, stages)
+        missing = missing_prerequisites(scenario, reps, stages, config)
         if missing:
             needed_stages = ",".join(stage for stage in STAGE_ORDER if stage in stages or stage in missing)
             files = "\n".join(f"  {stage} 工作簿 {path}" for stage, path in missing.items())
-            print(f"{scenario.key} 缺少前置文件（每个阶段显示第一项）。\n{files}\n"
-                  f"请先生成这些文件，或保留场景和重复号参数并使用 --stages {needed_stages}。",
-                  file=sys.stderr)
+            print(
+                f"{scenario.key} 缺少前置文件（每个阶段显示第一项）。\n{files}\n"
+                f"请先生成这些文件，或保留场景和重复号参数并使用 --stages {needed_stages}。",
+                file=sys.stderr,
+            )
             failed = True
             continue
         if "network" in stages:
@@ -92,7 +115,7 @@ def main() -> None:
                 failed = True
                 continue
         if repetition_stages:
-            tasks.extend(ReplicationTask(scenario, rep, SIMULATION, repetition_stages) for rep in reps)
+            tasks.extend(ReplicationTask(scenario, rep, config, repetition_stages) for rep in reps)
     completed = defaultdict(dict)
     with closing(run_parallel_tasks(tasks, MAX_WORKERS)) as outcomes:
         for outcome in outcomes:
@@ -104,8 +127,10 @@ def main() -> None:
                 replications[outcome.rep] = outcome.metrics
                 if len(replications) == len(reps):
                     try:
-                        path = write_model_metrics_summary(outcome.scenario, [replications[rep] for rep in reps])
-                        print(f"已生成场景均值汇总 {path}", flush=True)
+                        path = write_model_metrics_summary(
+                            outcome.scenario, [replications[rep] for rep in reps], config=config
+                        )
+                        print(f"已生成场景均值与标准差汇总 {path}", flush=True)
                     except Exception:
                         print(f"{outcome.scenario.key} 汇总失败\n{traceback.format_exc()}", file=sys.stderr)
                         failed = True
